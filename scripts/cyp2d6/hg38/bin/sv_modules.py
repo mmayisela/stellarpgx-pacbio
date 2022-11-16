@@ -183,10 +183,13 @@ def test_base(sv_dup, av_cov, supp_core_vars1, supp_core_vars2, cand_allele1, ca
         
         #     het_list1.append(i[0])
         
-        if i[0] in all_core_vars:
+        if i[0] in all_core_vars and (i[2] == "0|1" or i[2] == "1|0"):
             ind1 = het_list1.index(i[0])
             abhet_list2.append(abhet_list[ind1])
             ad_ratio_list2.append(ad_ratio_list[ind1])
+
+        else:
+            pass
             
     max_ratio = max(ad_ratio_list2)
     max_het = max(abhet_list2)
