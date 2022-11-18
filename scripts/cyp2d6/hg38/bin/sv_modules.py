@@ -146,9 +146,9 @@ def test_base(sv_dup, av_cov, supp_core_vars1, supp_core_vars2, cand_allele1, ca
 
     abhet_list2 = []
 
-    ad_ratio_list = []
+    # ad_ratio_list = []
 
-    ad_ratio_list2 = []
+    # ad_ratio_list2 = []
 
     
     if supp_core_vars1 == "ref_haplotype":
@@ -168,37 +168,36 @@ def test_base(sv_dup, av_cov, supp_core_vars1, supp_core_vars2, cand_allele1, ca
 
         # return i[0][ind+1:]
         
-        if (i[2] == "0|1" or i[2] == "1|0"): # and len(i[0][9:]) == 3:
+        if (i[2] == "0|1" or i[2] == "1|0") and i[-1] != ".":
             het_list1.append(i[0])
             
-            ad = i[4].split(",")
-            abhet = round(int(ad[1])/(int(ad[0])+int(ad[1])), 4)
-            ad_ratio = round(int(ad[1])/int(ad[0]), 4)
+            abhet = float(i[4])
+            # ad_ratio = round(int(ad[1])/int(ad[0]), 4)
 
             abhet_list.append(abhet)
-            ad_ratio_list.append(ad_ratio)
+            # ad_ratio_list.append(ad_ratio)
 
     # return het_list1
         # elif i[2] == "0|1" or i[2] == "1|0":
         
         #     het_list1.append(i[0])
         
-        if i[0] in all_core_vars and (i[2] == "0|1" or i[2] == "1|0"):
+        if i[0] in all_core_vars and (i[2] == "0|1" or i[2] == "1|0") and i[-1] != ".":
             ind1 = het_list1.index(i[0])
             abhet_list2.append(abhet_list[ind1])
-            ad_ratio_list2.append(ad_ratio_list[ind1])
+            # ad_ratio_list2.append(ad_ratio_list[ind1])
 
         else:
             pass
             
-    max_ratio = max(ad_ratio_list2)
+    # max_ratio = max(ad_ratio_list2)
     max_het = max(abhet_list2)
     max_het_pos = abhet_list2.index(max_het)
-    max_ratio_pos = ad_ratio_list2.index(max_ratio)
+    # max_ratio_pos = ad_ratio_list2.index(max_ratio)
     var = all_core_vars[max_het_pos]
-    var2 = all_core_vars[max_ratio_pos]
+    # var2 = all_core_vars[max_ratio_pos]
 
-    return [var, max_het, var2, max_ratio, supp_core_vars1, supp_core_vars2];
+    return [var, max_het, supp_core_vars1, supp_core_vars2];
 
 
 def test_dup1(sv_dup, av_cov, supp_core_vars1, supp_core_vars2, cand_allele1, cand_allele2, cn):
@@ -207,23 +206,28 @@ def test_dup1(sv_dup, av_cov, supp_core_vars1, supp_core_vars2, cand_allele1, ca
 
     var = in_list[0]
     max_het = in_list[1]
-    var2 = in_list[2]
-    max_ratio = in_list[3]
-    supp_core_vars1 = in_list[4]
-    supp_core_vars2 = in_list[5]
+    # var2 = in_list[2]
+    # max_ratio = in_list[3]
+    supp_core_vars1 = in_list[2]
+    supp_core_vars2 = in_list[3]
+
+
+    res_dip = cand_allele1 + "/" + cand_allele2
+
+    c_num = 2
     
-    if round(max_ratio) == 2:
-        if var2 in supp_core_vars1:
-            res_dip = cand_allele2 + "/" + cand_allele1 + "x" + "2"
-            c_num = 3
+    # if round(max_ratio) == 2:
+    #     if var2 in supp_core_vars1:
+    #         res_dip = cand_allele2 + "/" + cand_allele1 + "x" + "2"
+    #         c_num = 3
             
-        elif var2 in supp_core_vars2:
-            res_dip = cand_allele1 + "/" + cand_allele2 + "x" + "2"
-            c_num = 3
+    #     elif var2 in supp_core_vars2:
+    #         res_dip = cand_allele1 + "/" + cand_allele2 + "x" + "2"
+    #         c_num = 3
             
-    else:
-        res_dip = cand_allele1 + "/" + cand_allele2
-        c_num = 2
+    # else:
+    #     res_dip = cand_allele1 + "/" + cand_allele2
+    #     c_num = 2
         
     return [res_dip, c_num];    
             
@@ -236,8 +240,8 @@ def test_dup2(sv_dup, av_cov, supp_core_vars1, supp_core_vars2, cand_allele1, ca
     max_het = in_list[1]
     max_hap_cn = round(max_het * int(cn))
     hap2_cn = int(cn) - max_hap_cn 
-    supp_core_vars1 = in_list[4]
-    supp_core_vars2 = in_list[5]
+    supp_core_vars1 = in_list[2]
+    supp_core_vars2 = in_list[3]
 
 
     if var in supp_core_vars1:

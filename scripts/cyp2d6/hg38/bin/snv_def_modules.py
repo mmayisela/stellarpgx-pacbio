@@ -31,7 +31,8 @@ def get_all_vars_gt(infile_full_gt):
 
 def cand_snv_allele_calling(database, hap_file1, hap_file2, cn):
     
-
+    cand_allele1 = ""
+    cand_allele2 = ""
     # f = open(infile_spec, "r")
 
     list1 = []
@@ -65,8 +66,11 @@ def cand_snv_allele_calling(database, hap_file1, hap_file2, cn):
         core_variants2 = "none"
         cand_allele2 = "*1"
 
-        
-    cand_diplo = cand_allele1 + "/" + cand_allele2
+    if (cand_allele1 == "") or (cand_allele2 == ""):
+        cand_diplo = "novel"
+
+    else: 
+        cand_diplo = cand_allele1 + "/" + cand_allele2
 
     return [cand_diplo, core_variants1, core_variants2];
     

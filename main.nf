@@ -342,112 +342,35 @@ ref_genome = new File("${params.ref_file}").getName()
 
 
 
-// process call_snvs1 {
-// //   maxForks 10
-
-//     input:
-//     set val(name), file(bam) from data1
-//     path ref_dir from Channel.value("${ref_dir_val}")
-//     path res_dir
-
-//     output:	        
-//     set val(name), path("${name}_var_1") into var_ch1
-      
-//     script:
-//     ext1 = bam[0].getExtension()
-//     if (ext1=='bam')
-//         sam_ind='bam.bai'
-
-//     else if (ext1=='cram')
-//         sam_ind='cram.crai'
-
-//     else if (ext1=='crai')
-//         sam_ind='crai'
-
-//     else
-//         sam_ind='bai'   
-      
-//     """
-//     graphtyper genotype_lr ${ref_dir}/${ref_genome} --sam=${name}.${ext} --region=${region_a1} --output=${name}_var_1 --prior_vcf=${res_dir}/common_plus_core_var.vcf.gz ${cram_options}
-//     bcftools concat ${name}_var_1/${chrom}/*.vcf.gz > ${name}_var_1/${chrom}/${region_a2}.vcf 
-//     bgzip -f ${name}_var_1/${chrom}/${region_a2}.vcf 
-//     tabix -f ${name}_var_1/${chrom}/${region_a2}.vcf.gz
-
-//     """
-
-// }
-
-
-process deepcall {
-  label 'deepvariant'
-//  cpus params.call_cpus
-//  memory params.call_mem
-
+process call_snvs {
+  label 'nanocaller'
+  
   errorStrategy 'ignore'
-  tag "${name}"  
+  tag "${name}"
+  cpus 10
 
-  //errorStrategy 'finish'
-  if (params.constraint)
-     clusterOptions="--constraint=${params.constraint}"
   input:
      set val(name), file(bam) from data1
      path ref_dir from Channel.value("${ref_dir_val}")
-     
+
   output:
-     set val(name), file(vcf), file(tbi) into unphased_ch
+     set val(name), path("${name}_files") into variants_ch
   script:
 
-     chrom = "chr22"
-     vcf = "${name}_${gene_name}_unphased_unfiltered.vcf.gz"
-     tbi = "${vcf}.tbi"
+     """
+     NanoCaller --bam ${bam[0]} --ref ${ref_dir}/${ref_genome} --cpu 10 --regions ${region_a1} --prefix ${name}_${gene_name} --sample ${name} --output ${name}_files
 
      """
-     /opt/deepvariant/bin/run_deepvariant --model_type PACBIO --ref ${ref_dir}/${ref_genome} --reads ${bam[0]} --output_vcf $vcf --num_shards 16 --regions ${region_a1}
-     
-     """
+
 }
 
 
-
-// process call_snvs {
-// //   maxForks 10
-
-//     input:
-//     set val(name), file(bam) from data2
-//     path ref_dir from Channel.value("${ref_dir_val}")
-
-//     output: 
-//     set val(name), path("${name}_var_2") into var_ch2
-
-//     script:
-//     ext1 = bam[0].getExtension()
-//     if (ext1=='bam')
-//         sam_ind='bam.bai'
-
-//     else if (ext1=='cram')
-//         sam_ind='cram.crai'
-
-//     else if (ext1=='crai')
-//         sam_ind='crai'
-
-//     else 
-//         sam_ind='bai'
-
-//     """
-//     graphtyper genotype_lr ${ref_dir}/${ref_genome} --sam=${name}.${ext} --region=${region_a1} --output=${name}_var_2 -a ${cram_options}
-//     bcftools concat ${name}_var_2/${chrom}/*.vcf.gz > ${name}_var_2/${chrom}/${name}_${region_a2}.vcf       
-//     bgzip -f ${name}_var_2/${chrom}/${name}_${region_a2}.vcf
-//     tabix -f ${name}_var_2/${chrom}/${name}_${region_a2}.vcf.gz
-//     rm ${name}_var_2/${chrom}/${region_a2}.vcf.gz*
-
-//     """
-
-// }
-
+variants_ch.into {variants_ch1; variants_ch2}
 
 
 process get_depth {
 //   maxForks 10
+    label 'global'
 
     input:
     set val(name), file(bam) from data3
@@ -467,17 +390,17 @@ process get_depth {
 }
 
 
-// var_ch1.join(var_ch2).set { var_ch_joined }
-
 
 // process format_snvs {
 // //   maxForks 10
 
+
 //     // publishDir "$output_folder/$gene_name/variants", pattern: '*vcf.gz', mode: 'copy', overwrite: 'true'
-//     // publishDir "$output_folder/$gene_name/variants", pattern: '*vcf.gz.tbi', mode: 'copy', overwrite: 'true'    
+//     // publishDir "$output_folder/$gene_name/variants", pattern: '*vcf.gz.tbi', mode: 'copy', overwrite: 'true'
 
 //     input:
-//     set val(name), path("${name}_var_2") from var_ch2
+//     set val(name), path(vcf_dir) from variants_ch
+//     path caller_base
 
 //     output:
 //     set val(name), file("${name}_${gene_name}.vcf.gz"), file("${name}_${gene_name}.vcf.gz.tbi") into (var_norm1, var_norm2)
@@ -485,7 +408,9 @@ process get_depth {
 //     script:
 
 //     """
-//         bcftools norm -m - ${name}_var_2/${chrom}/${name}_${region_a2}.vcf.gz | bcftools view -e 'GT="1/0"' | bcftools view -e 'GT="0/0"' | bcftools view -e 'FILTER="PASS" & INFO/QD<10 || 0<ABHet<0.25' | bgzip -c > ${name}_${gene_name}.vcf.gz
+//         bcftools norm -m - ${vcf} | bcftools view -e 'FILTER="RefCall" & VAF<0.25' > ${name}_${gene_name}_snvs.vcf
+// 	python3 ${caller_base}/runtime/check_gt.py ${name}_${gene_name}_snvs.vcf | bcftools view -e 'GT="0/0"' > ${name}_${gene_name}.vcf
+// 	bgzip ${name}_${gene_name}.vcf  
 //         tabix ${name}_${gene_name}.vcf.gz
 
 //     """
@@ -493,63 +418,35 @@ process get_depth {
 // }
 
 
+// var_norm1.join(data4).set { prep_phase } 
 
 
-process format_snvs {
-//   maxForks 10
+// process phase_snvs {
+//     label 'whatshap'    
 
-    // publishDir "$output_folder/$gene_name/variants", pattern: '*vcf.gz', mode: 'copy', overwrite: 'true'
-    // publishDir "$output_folder/$gene_name/variants", pattern: '*vcf.gz.tbi', mode: 'copy', overwrite: 'true'
+// //    publishDir "$output_folder/phased_vcfs", mode: 'copy', overwrite: 'true'
 
-    input:
-    set val(name), file(vcf), file(vcf_tbi) from unphased_ch
-    path caller_base
+//     input:
+//     set val(name), file(unphased_vcf), file(unphased_tbi), file(bam) from prep_phase
+//     path ref_dir from Channel.value("${ref_dir_val}")
 
-    output:
-    set val(name), file("${name}_${gene_name}.vcf.gz"), file("${name}_${gene_name}.vcf.gz.tbi") into (var_norm1, var_norm2)
+//     output:
+//     set val(name), file(phased_vcf), file(phased_tbi) into (phased_ch1, phased_ch2)
 
-    script:
+//     script:
+//     phased_vcf = "${name}_${gene_name}_phased.vcf.gz"
+//     phased_tbi = "${name}_${gene_name}_phased.vcf.gz.tbi"
 
-    """
-        bcftools norm -m - ${vcf} | bcftools view -e 'GT="1/0"' | bcftools view -e 'GT="0/0"' | bcftools view -e 'FILTER="RefCall" & VAF<0.25' > ${name}_${gene_name}_snvs.vcf
-	python3 ${caller_base}/runtime/check_gt.py ${name}_${gene_name}_snvs.vcf > ${name}_${gene_name}.vcf
-	bgzip ${name}_${gene_name}.vcf  
-        tabix ${name}_${gene_name}.vcf.gz
-
-    """
-
-}
-
-
-var_norm1.join(data4).set { prep_phase } 
-
-
-process phase_snvs {
-    label 'whatshap'    
-
-//    publishDir "$output_folder/phased_vcfs", mode: 'copy', overwrite: 'true'
-
-    input:
-    set val(name), file(unphased_vcf), file(unphased_tbi), file(bam) from prep_phase
-    path ref_dir from Channel.value("${ref_dir_val}")
-
-    output:
-    set val(name), file(phased_vcf), file(phased_tbi) into (phased_ch1, phased_ch2)
-
-    script:
-    phased_vcf = "${name}_${gene_name}_phased.vcf.gz"
-    phased_tbi = "${name}_${gene_name}_phased.vcf.gz.tbi"
-
-    """
-    whatshap phase \
-        --output $phased_vcf \
-        --reference  ${ref_dir}/${ref_genome} \
-        --chromosome $chrom \
-        $unphased_vcf \
-        ${bam[0]} --indels
-    tabix ${name}_${gene_name}_phased.vcf.gz
-    """
-}
+//     """
+//     whatshap phase \
+//         --output $phased_vcf \
+//         --reference  ${ref_dir}/${ref_genome} \
+//         --chromosome $chrom \
+//         $unphased_vcf \
+//         ${bam[0]} --indels
+//     tabix ${name}_${gene_name}_phased.vcf.gz
+//     """
+// }
 
 
 
@@ -560,7 +457,7 @@ process get_core_var {
     tag "${name}"   
 
     input:
-    set val(name), file("${name}_${gene_name}_phased.vcf.gz"), file("${name}_${gene_name}_phased.vcf.gz.tbi") from phased_ch1
+    set val(name), path("${name}_files") from variants_ch1
     path res_dir
 
     output:
@@ -569,8 +466,8 @@ process get_core_var {
     script:
  
     """
-    bcftools isec ${name}_${gene_name}_phased.vcf.gz ${res_dir}/allele_def_var.vcf.gz -p ${name}_int -Oz
-    bcftools norm -m - ${name}_int/0002.vcf.gz | bcftools view -e 'GT="1/0"' | bcftools view -e 'GT="0/0"' | bgzip -c > ${name}_int/${name}_${gene_name}_core.vcf.gz
+    bcftools isec ${name}_files/${name}_${gene_name}.vcf.gz ${res_dir}/allele_def_var.vcf.gz -p ${name}_int -Oz
+    bcftools norm -m - ${name}_int/0002.vcf.gz | bgzip -c > ${name}_int/${name}_${gene_name}_core.vcf.gz
     tabix ${name}_int/${name}_${gene_name}_core.vcf.gz
 
     """
@@ -600,26 +497,6 @@ process get_hap_snvs {
 }
 
 
-// process query_dup_profile1 {
-// //   maxForks 10
-
-//     errorStrategy 'ignore'
-//     tag "${name}"
-
-//     input:
-//     set val(name), file(vcf_full), file(tbi2) from var_norm2
-
-//     output:
-//     set val(name), file("${name}_gene_dup_summary.txt") into dup_ch1
-
-//     script:
-
-//     """
-//     bcftools query -f'%POS~%REF>%ALT\t%QUAL\t[%GT\t%DP\t%AD]\n' -i'GT="alt"' $vcf_full > ${name}_gene_dup_summary.txt
-
-//     """
-
-// }
 
 
 process query_dup_profile {
@@ -629,15 +506,15 @@ process query_dup_profile {
     tag "${name}"
 
     input:
-    set val(name), file(p_vcf), file(p_tbi) from phased_ch2
+    set val(name), path("${name}_files") from variants_ch2
 
     output:
-    set val(name), file("${name}_gene_dup_phased_summary.txt") into dup_ch2
+    set val(name), file("${name}_${gene_name}_dup_phased_summary.txt") into dup_ch2
 
     script:
 
     """
-    bcftools query -f'%POS~%REF>%ALT\t%QUAL\t[%GT\t%DP\t%AD]\n' -i'GT="alt"' $p_vcf > ${name}_gene_dup_phased_summary.txt
+    bcftools query -f'%POS~%REF>%ALT\t%QUAL\t[%GT\t%DP\t%FQ]\n' -i'GT="alt"' ${name}_files/${name}_${gene_name}.vcf.gz > ${name}_${gene_name}_dup_phased_summary.txt
 
     """
 

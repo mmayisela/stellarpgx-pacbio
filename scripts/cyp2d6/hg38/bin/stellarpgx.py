@@ -83,7 +83,16 @@ if snv_def_calls == None:
         print("\nMetaboliser status:")
         print("Indeterminate")
 
+    sys.exit()
 
+if snv_def_calls[0] == "novel":
+    print("\nComputed_copy_number: {}".format(cn))
+    print("\nResult:")
+    print("No call: Possible novel allele or suballele present")
+
+    sys.exit()
+    
+        
 snv_def_alleles = snv_def_calls[0]
 
 
