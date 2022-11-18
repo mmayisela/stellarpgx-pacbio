@@ -370,7 +370,7 @@ variants_ch.into {variants_ch1; variants_ch2}
 
 process get_depth {
 //   maxForks 10
-    label 'global'
+
 
     input:
     set val(name), file(bam) from data3
